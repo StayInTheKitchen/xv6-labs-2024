@@ -203,6 +203,11 @@ UPROGS=\
 	$U/_ex7\
 	$U/_ex8\
 	$U/_ex9\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_xargs\
 
 ifeq ($(LAB),syscall)
 UPROGS += \
