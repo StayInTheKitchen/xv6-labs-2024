@@ -1,0 +1,5 @@
+break * 0x8000609a
+break usertrap
+disable $bpnum
+break trace.c:17
+

@@ -1,0 +1,5 @@
+break user/secret.c:14
+disable $bpnum
+break sys_sbrk
+break uvmalloc
+
