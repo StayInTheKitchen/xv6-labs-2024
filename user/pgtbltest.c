@@ -120,6 +120,7 @@ superpg_test()
   printf("superpg_test starting\n");
   testname = "superpg_test";
   
+  // sbrk returns user space size
   char *end = sbrk(N);
   if (end == 0 || end == (char*)0xffffffffffffffff)
     err("sbrk failed");

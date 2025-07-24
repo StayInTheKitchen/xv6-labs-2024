@@ -10,6 +10,7 @@
 #include "defs.h"
 
 void freerange(void *pa_start, void *pa_end);
+void superfreerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -23,11 +24,19 @@ struct {
   struct run *freelist;
 } kmem;
 
+struct {
+  struct spinlock lock;
+  struct run *freelist;
+} ksupermem;
+
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  freerange(end, (void*)(((uint64)end + PHYSTOP)/2));
+
+  initlock(&ksupermem.lock, "ksupermem");
+  superfreerange((void*)(((uint64)end + PHYSTOP)/2), (void*)(PHYSTOP));
 }
 
 void
@@ -37,6 +46,15 @@ freerange(void *pa_start, void *pa_end)
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
+}
+
+void
+superfreerange(void *pa_start, void *pa_end)
+{
+  char *p;
+  p = (char*)SUPERPGROUNDUP((uint64)pa_start);
+  for(; p + SUPERPGSIZE <= (char*)pa_end; p += SUPERPGSIZE)
+    superfree(p); 
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -62,6 +80,26 @@ kfree(void *pa)
   release(&kmem.lock);
 }
 
+void
+superfree(void *pa)
+{
+  struct run *r;
+
+   if(((uint64)pa % SUPERPGSIZE) != 0 || (uint64)pa < (PHYSTOP/2) || (uint64)pa >= PHYSTOP)
+    panic("superfree");
+
+  // too slow
+  // Fill with junk to catch dangling refs.
+  // memset(pa, 1, SUPERPGSIZE);
+
+  r = (struct run*)pa;
+
+  acquire(&ksupermem.lock);
+  r->next = ksupermem.freelist;
+  ksupermem.freelist = r;
+  release(&ksupermem.lock); 
+}
+
 // Allocate one 4096-byte page of physical memory.
 // Returns a pointer that the kernel can use.
 // Returns 0 if the memory cannot be allocated.
@@ -78,5 +116,24 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  return (void*)r;
+}
+
+// allocate 2MB superpage
+// returns superpage start address if success, 0 if fail
+void *
+superalloc(void)
+{
+  struct run *r;
+
+  acquire(&ksupermem.lock);
+  r = ksupermem.freelist;
+  if(r)
+    ksupermem.freelist = r->next;
+  release(&ksupermem.lock);
+
+  // too slow
+  // if (r)
+  //   memset((char*)r, 5, SUPERPGSIZE);
   return (void*)r;
 }
