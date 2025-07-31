@@ -237,8 +237,8 @@ mapsuperpages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
-    a += PGSIZE;
-    pa += PGSIZE;
+    a += SUPERPGSIZE;
+    pa += SUPERPGSIZE;
   }
   return 0;
 }
