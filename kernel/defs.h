@@ -60,6 +60,10 @@ void            ramdiskintr(void);
 void            ramdiskrw(struct buf*);
 
 // kalloc.c
+char            get_reference_count(uint64);
+void            set_reference_count(uint64, char);
+void            decrement_reference_count(uint64);
+void            increment_reference_count(uint64);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);

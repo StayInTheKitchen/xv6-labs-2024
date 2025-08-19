@@ -14,6 +14,38 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+
+struct {
+  struct spinlock lock;
+  char table[(PHYSTOP-KERNBASE) / PGSIZE];
+} reference_count;
+
+char get_reference_count(uint64 pa) {
+  acquire(&reference_count.lock);
+  char ret = reference_count.table[((uint64)pa - PGROUNDDOWN((uint64)end)) / PGSIZE];
+  release(&reference_count.lock);
+
+  return ret;
+}
+
+void set_reference_count(uint64 pa, char val) {
+  acquire(&reference_count.lock);
+  reference_count.table[((uint64)pa - PGROUNDDOWN((uint64)end)) / PGSIZE] = val;
+  release(&reference_count.lock);
+}
+
+void decrement_reference_count(uint64 pa) {
+  acquire(&reference_count.lock);
+  reference_count.table[((uint64)pa - PGROUNDDOWN((uint64)end)) / PGSIZE]--;
+  release(&reference_count.lock);
+}
+
+void increment_reference_count(uint64 pa) {
+  acquire(&reference_count.lock);
+  reference_count.table[((uint64)pa - PGROUNDDOWN((uint64)end)) / PGSIZE]++;
+  release(&reference_count.lock);
+}
+
 struct run {
   struct run *next;
 };
@@ -27,6 +59,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  initlock(&reference_count.lock, "ref_cnt");
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -76,7 +109,9 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r) {
     memset((char*)r, 5, PGSIZE); // fill with junk
+    set_reference_count((uint64)r, 1);
+  }
   return (void*)r;
 }

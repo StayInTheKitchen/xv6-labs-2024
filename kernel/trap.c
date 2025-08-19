@@ -65,6 +65,43 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if (r_scause() == 0xf) {
+    // page fault
+
+    // pagefault_handler();
+    uint64 va = PGROUNDDOWN(r_stval());
+
+    if (va >= MAXVA) {
+      printf("over MAXVA\n");
+      setkilled(p);
+      exit(-1);
+    }
+
+    pte_t *pte = walk(p->pagetable, va, 0); 
+    if (pte == 0) {
+      printf("no pte\n");
+      setkilled(p);
+      exit(-1);
+    }
+    uint64 pa = PTE2PA(*pte);
+    uint flags = PTE_FLAGS(*pte);
+
+    if ((flags & PTE_C) == 0) {
+      // no COW page but fault -> should be killed
+      printf("no COW but fault\n");
+      setkilled(p);
+      exit(-1);
+    }
+
+    char* mem = kalloc();
+    memmove(mem, (char*)pa, PGSIZE);
+
+    flags = (flags | PTE_W);
+    flags = (flags & (~PTE_C));
+    uvmunmap(p->pagetable, va, 1, 1);
+    mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags);
+
+    p->trapframe->epc = r_sepc();
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
