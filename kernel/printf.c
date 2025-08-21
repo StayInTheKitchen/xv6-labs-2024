@@ -162,6 +162,8 @@ printf(char *fmt, ...)
 void
 panic(char *s)
 {
+  backtrace();
+
   pr.locking = 0;
   printf("panic: ");
   printf("%s\n", s);
@@ -175,4 +177,24 @@ printfinit(void)
 {
   initlock(&pr.lock, "pr");
   pr.locking = 1;
+}
+
+void
+backtrace(void)
+{
+  printf("backtrace:\n");
+
+  uint64 fp = r_fp();
+  uint64 prev_fp = *(uint64*)(fp - 16);
+  uint64 prev_ret = *(uint64*)(fp - 8);
+
+  uint64 kstack = PGROUNDDOWN(fp);
+
+  while (PGROUNDDOWN(fp) == kstack) {
+    printf("0x%lx\n", prev_ret);
+
+    fp = prev_fp;
+    prev_fp = *(uint64*)(fp - 16);
+    prev_ret = *(uint64*)(fp - 8);
+  }
 }

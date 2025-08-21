@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "defs.h"
 
+extern struct proc proc[NPROC];
+
 struct spinlock tickslock;
 uint ticks;
 
@@ -77,8 +79,26 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    struct proc *pp;
+
+    for (pp = proc; pp < &proc[NPROC]; pp++) {
+      (pp->tick_passed)++;
+      if (pp->tick_passed == pp->interval) {
+        pp->tick_passed = 0;
+
+        if (pp->handler_state == 1)
+          continue;
+        if (pp->interval == 0)
+          continue;
+
+        pp->handler_state = 1;
+        memmove(&(pp->sigalarm_trapframe), pp->trapframe, sizeof(struct trapframe));
+        pp->trapframe->epc = (uint64)(pp->handler);
+      }
+    }
     yield();
+  }
 
   usertrapret();
 }
