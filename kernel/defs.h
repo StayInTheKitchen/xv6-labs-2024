@@ -12,6 +12,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct VMA;
 
 // bio.c
 void            binit(void);
@@ -37,6 +38,10 @@ void            fileinit(void);
 int             fileread(struct file*, uint64, int n);
 int             filestat(struct file*, uint64 addr);
 int             filewrite(struct file*, uint64, int n);
+struct inode*   getifromvma(struct VMA);
+int             is_readonly(struct file*);
+int             is_writeonly(struct file*);
+int             get_filesize(struct file* fp);
 
 // fs.c
 void            fsinit(int);

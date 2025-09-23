@@ -180,3 +180,24 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+struct inode * getifromvma(struct VMA vma) {
+  return vma.fp->ip;
+}
+
+int is_readonly(struct file* fp) {
+  if (fp->readable && !(fp->writable))
+    return 1;
+  
+  return 0;
+}
+
+int is_writeonly(struct file* fp) {
+  if (!(fp->readable) && fp->writable)
+    return 1;
+  
+  return 0;
+}
+
+int get_filesize(struct file* fp) {
+  return fp->ip->size;
+}

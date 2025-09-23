@@ -81,6 +81,22 @@ struct trapframe {
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+struct VMA {
+  int used;
+
+  uint64 start; // mmap start 주소
+  uint len;     // mmap length
+
+  uint64 file_start; // 파일 매핑이 시작되는 주소
+  uint64 file_end;  // 파일 매핑이 끝나는 주소
+
+  struct file *fp;
+  uint offset;
+
+  int prot;
+  int flags;
+};
+
 // Per-process state
 struct proc {
   struct spinlock lock;
@@ -104,4 +120,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  struct VMA vma[16];
+  uint64 vma_start;
 };

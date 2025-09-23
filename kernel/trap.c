@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -67,6 +68,51 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if (r_scause() == 0xd || r_scause() == 0xf) {
+    uint64 fault_page = PGROUNDDOWN(r_stval());
+    struct proc *p = myproc();
+
+    uint64 mmap_start = 0;
+    uint64 mmap_end = 0;
+    int i;
+    for (i = 0; i < 16; ++i) {
+      if (p->vma[i].used == 0)
+        continue;
+      
+      mmap_start = p->vma[i].start;
+      mmap_end = mmap_start + p->vma[i].len;
+
+      if (mmap_start <= fault_page && fault_page < mmap_end)
+        break;
+    }
+
+    if (i == 16)
+      exit(-1);
+
+    if ( (r_scause() == 0xf) && ((p->vma[i].prot & PROT_WRITE) == 0))
+      exit(-1);
+    
+    char *mem = kalloc();
+
+    struct inode *ip = getifromvma(p->vma[i]);
+    ilock(ip);
+    int n;
+    int off = fault_page - (p->vma[i].file_start);
+    if ((n = readi(ip, 0, (uint64)mem, off, PGSIZE)) != PGSIZE)
+      memset(mem + n, 0, PGSIZE - n);
+    iunlock(ip);
+
+    int prot = p->vma[i].prot;
+    int perm = PTE_V | PTE_U;
+
+    if (prot & PROT_READ)
+      perm |= PTE_R;
+    if (prot & PROT_WRITE)
+      perm |= PTE_W;
+    if (prot & PROT_EXEC)
+      perm |= PTE_X;
+
+    mappages(p->pagetable, fault_page, PGSIZE, (uint64)mem, perm);
   } else {
     printf("usertrap(): unexpected scause 0x%lx pid=%d\n", r_scause(), p->pid);
     printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());

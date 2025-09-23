@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "virtio.h": "c",
+    "defs.h": "c",
+    "fs.h": "c",
+    "file.h": "c"
+  }
+}

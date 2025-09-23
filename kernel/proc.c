@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -245,6 +246,7 @@ userinit(void)
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
+  p->vma_start = (TRAPFRAME - (512 * PGSIZE));
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -295,6 +297,14 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+  np->vma_start = p->vma_start;
+
+  for (int i = 0; i < 16; ++i) {
+    if (p->vma[i].used == 0)
+      continue;
+    
+    memmove(&(np->vma[i]), &(p->vma[i]), sizeof(struct VMA));
+  }
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -357,6 +367,54 @@ exit(int status)
       struct file *f = p->ofile[fd];
       fileclose(f);
       p->ofile[fd] = 0;
+    }
+  }
+
+  for (int i = 0; i < 16; ++i) {
+    if (p->vma[i].used == 0)
+      continue;
+    
+    uint64 va = 0;
+    uint64 mmap_start = p->vma[i].start;
+    uint64 mmap_end = mmap_start + p->vma[i].len;
+
+    if (p->vma[i].flags & MAP_SHARED) {
+      int left = 0;
+      for (va = mmap_start; va < mmap_end; va += PGSIZE) {
+        if (va == PGROUNDDOWN(p->vma[i].file_end)) {
+          left = 1;
+          break;
+        }
+
+        struct inode *ip = getifromvma(p->vma[i]);
+        begin_op();
+        ilock(ip);
+        writei(ip, 1, va, va - p->vma[i].file_start, PGSIZE);
+        iunlock(ip);
+        end_op();
+      }
+
+      if (left == 1) {
+        struct inode *ip = getifromvma(p->vma[i]);
+        begin_op();
+        ilock(ip);
+        writei(ip, 1, va, va - p->vma[i].file_start, p->vma[i].file_end - va);
+        iunlock(ip);
+        end_op();
+      }
+    }
+
+    int npages = (mmap_end - mmap_start) / PGSIZE;
+
+    va = mmap_start;
+    for (int i = 0; i < npages; ++i) {
+      pte_t *pte = walk(p->pagetable, va, 0);
+
+      if (pte == 0 || *pte == 0)
+        continue;
+
+      uvmunmap(p->pagetable, va, 1, 1);
+      va += PGSIZE;
     }
   }
 
