@@ -84,11 +84,11 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct VMA {
   int used;
 
-  uint64 start; // mmap start 주소
+  uint64 start; // mmap start
   uint len;     // mmap length
 
-  uint64 file_start; // 파일 매핑이 시작되는 주소
-  uint64 file_end;  // 파일 매핑이 끝나는 주소
+  uint64 file_start; 
+  uint64 file_end;
 
   struct file *fp;
   uint offset;
