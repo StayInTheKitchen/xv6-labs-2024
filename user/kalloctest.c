@@ -20,13 +20,8 @@ int countfree();
 int
 main(int argc, char *argv[])
 {
-<<<<<<< HEAD
   test1();
   test2();
-=======
-  // test1();
-  // test2();
->>>>>>> 23c25f71ab69f41ca9be7eba3086d71f4fe7d4fb
   test3();
   exit(0);
 }
