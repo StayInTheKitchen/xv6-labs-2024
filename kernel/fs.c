@@ -311,8 +311,12 @@ ilock(struct inode *ip)
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
     ip->valid = 1;
+<<<<<<< HEAD
     if(ip->type == 0) {
       printf("ilock: ino %d has no type\n", ip->inum);
+=======
+    if(ip->type == 0)
+>>>>>>> 23c25f71ab69f41ca9be7eba3086d71f4fe7d4fb
       panic("ilock: no type");
     }
   }
